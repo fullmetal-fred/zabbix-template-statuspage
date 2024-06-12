@@ -1,0 +1,85 @@
+zabbix_export:
+  version: '7.0'
+  template_groups:
+    - uuid: a571c0d144b14fd4a87a9d9b2aa9fcd6
+      name: Templates/Applications
+  templates:
+    - uuid: 2755b05d8a9143708e9ef7025525ed0d
+      template: Statuspage
+      name: Statuspage
+      groups:
+        - name: Templates/Applications
+      items:
+        - uuid: 5dd42901195240b38c864f1f051b05c8
+          name: '# Master Statuspage Components'
+          type: HTTP_AGENT
+          key: statuspageComponentsMaster
+          trends: '0'
+          value_type: TEXT
+          url: '{$STATUSPAGE.URL}/api/v2/components.json'
+      discovery_rules:
+        - uuid: fe8b50d1620f45e59f0ca493200cf086
+          name: 'Statuspage Components Discovery'
+          type: HTTP_AGENT
+          key: statuspageComponentsDiscovery
+          delay: 1h
+          item_prototypes:
+            - uuid: 3e6da401f7f34edc9ad39e386ad357a5
+              name: '{#NAME}: Component Status'
+              type: DEPENDENT
+              key: 'status[{#NAME},{#ID}]'
+              delay: '0'
+              trends: '0'
+              value_type: TEXT
+              preprocessing:
+                - type: JSONPATH
+                  parameters:
+                    - '$.components[?(@.id == "{#ID}")].status'
+                - type: TRIM
+                  parameters:
+                    - '''["]'
+              master_item:
+                key: statuspageComponentsMaster
+              trigger_prototypes:
+                - uuid: 70c7bd3a72f74982aa28223393d00ea5
+                  expression: 'in(last(/Statuspage/status[{#NAME},{#ID}],#1),"partial_outage","major_outage")=1'
+                  name: '{#NAME} status is not operational'
+                  opdata: 'Status: {ITEM.LASTVALUE}'
+                  url_name: '{$STATUSPAGE.URL}'
+                  priority: AVERAGE
+          url: 'https://status.zoom.us/api/v2/components.json'
+          lld_macro_paths:
+            - lld_macro: '{#CREATED}'
+              path: $.created_at
+            - lld_macro: '{#DESCRIPTION}'
+              path: $.description
+            - lld_macro: '{#GROUPID}'
+              path: $.group_id
+            - lld_macro: '{#GROUP}'
+              path: $.group
+            - lld_macro: '{#ID}'
+              path: $.id
+            - lld_macro: '{#NAME}'
+              path: $.name
+            - lld_macro: '{#ONLYSHOWIFDEGRADED}'
+              path: $.only_show_if_degraded
+            - lld_macro: '{#PAGE_ID}'
+              path: $.page_id
+            - lld_macro: '{#POSITION}'
+              path: $.position
+            - lld_macro: '{#SHOWCASE}'
+              path: $.showcase
+            - lld_macro: '{#STARTDATE}'
+              path: $.start_date
+            - lld_macro: '{#STATUS}'
+              path: $.status
+            - lld_macro: '{#UPDATED}'
+              path: $.updated_at
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - $.components
+      macros:
+        - macro: '{$STATUSPAGE.URL}'
+          value: 'https://status.atlassian.com/'
+          description: 'The URL of the Statuspage'
